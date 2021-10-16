@@ -8,7 +8,7 @@ class Dense_Layer():
         self.X = self.ModifyData(X)
         self.Y = Y / 10.0
         self.m = self.X.shape[1]
-        self.w = np.zeros((self.X.shape[0],1),dtype=float)
+        self.w = np.zeros((784,1))
         self.b = 0.00
     def ModifyData(self, x):
         x = x.reshape(x.shape[0],-1).T 
@@ -40,11 +40,16 @@ class Dense_Layer():
 
 if __name__ == '__main__':
     (train_images, train_labels), (test_images, test_labels) = fashion_mnist.load_data()
-    print(train_labels.shape)
-    dense_layer = Dense_Layer(train_images,train_labels)
-    for i in range(10):
-        cost = dense_layer.optimize(10)
+    train_labels = train_labels / 10
+    train_labels = train_labels.reshape(1,len(train_labels))
+    dense = Dense_Layer(train_images,train_labels)
+    for i in range(50):
+        cost = dense.optimize(0.015)
         print(cost)
-
+        A = dense.call()
+        A = np.around(A,decimals=1)
+    print(A[:10])
+    print(train_labels[:10])
+    print( A == train_labels)
 
 
