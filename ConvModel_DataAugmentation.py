@@ -1,4 +1,3 @@
-from regex import W
 from tensorflow.keras import layers
 import tensorflow as tf 
 
@@ -8,7 +7,7 @@ VALIDATION_SPLIT = 0.2
 train_ds = tf.keras.utils.image_dataset_from_directory(
     "TrainImages",
     batch_size = 32,
-    image_size = (180, 180),
+    image_size = (160, 160),
     validation_split = VALIDATION_SPLIT,
     subset = "training",
     shuffle = True,
@@ -18,7 +17,7 @@ train_ds = tf.keras.utils.image_dataset_from_directory(
 val_ds = tf.keras.utils.image_dataset_from_directory(
     "TrainImages",
     batch_size = 32,
-    image_size = (180, 180),
+    image_size = (160, 160),
     validation_split = VALIDATION_SPLIT,
     subset = "validation",
     shuffle = True,
@@ -32,33 +31,28 @@ data_augmentation = tf.keras.Sequential([
     layers.RandomZoom(0.2)
 ])
 
+Inputs = layers.Input(shape = (160, 160, 3))
+x = data_augmentation(Inputs)
+x = layers.Rescaling(1. / 255)(x)
+for filterSize in [32, 64, 128, 256, 256]:
+    residual = x
+    x = layers.Conv2D(filters=filterSize, kernel_size = (3, 3), activation = "relu", padding = "same")(x)
+    x = layers.Conv2D(filters=filterSize, kernel_size = (3, 3), activation = "relu", padding = "same")(x)
+    x = layers.MaxPooling2D()(x)
+    residual = layers.Conv2D(filterSize, kernel_size = 1, strides = 2, padding = "same")(residual)
+    x = x + residual
 
-convBase = tf.keras.applications.vgg16.VGG16(
-    weights = "imagenet",
-    include_top = False,
-    input_shape = (180, 180, 3)
-)
-
-convBase.trainable = True
-
-for layer in convBase.layers[:-2]:
-    layer.trainable = False
-
-Inputs = tf.keras.layers.Input(shape = (180, 180, 3))
-x = tf.keras.applications.vgg16.preprocess_input(Inputs)
-x = convBase(x)
 x = layers.Flatten()(x)
-x = layers.Dense(256, activation = "relu")(x)
-x = layers.Dropout(0.5)(x)
 x = layers.Dense(1, activation = "sigmoid")(x)
 
 
+
 model = tf.keras.models.Model(Inputs, x)
+
 model.compile(optimizer = "adam", loss = "binary_crossentropy", metrics = ["accuracy"])
 
-
-model.fit(train_ds, validation_data = val_ds, epochs = 3, 
-        callbacks = [tf.keras.callbacks.ModelCheckpoint("ConvModel_with_ImageNet_FineTuning", save_best_only = True, monitor = "val_accuracy")])
+model.fit(train_ds, validation_data = val_ds, epochs = 50, 
+        callbacks = [tf.keras.callbacks.ModelCheckpoint("ConvModel_With_Augmentation_Normalization", save_best_only = True, monitor = "val_accuracy")])
 
 
 

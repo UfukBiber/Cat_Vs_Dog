@@ -1,3 +1,6 @@
+#### Mini ImageNet Model without transfer learning
+
+
 from tensorflow.keras import layers
 import tensorflow as tf 
 
@@ -34,31 +37,35 @@ data_augmentation = tf.keras.Sequential([
 Inputs = layers.Input(shape = (180, 180, 3))
 x = data_augmentation(Inputs)
 x = layers.Rescaling(1. / 255)(x)
-x = layers.Conv2D(filters=32, kernel_size = (3, 3), activation = "relu")(x)
-x = layers.MaxPooling2D(pool_size = (2, 2))(x)
+x = layers.Conv2D(filters = 32, kernel_size = 5, use_bias = False)(x)
 
-x = layers.Conv2D(filters=64, kernel_size = (3, 3), activation = "relu")(x)
-x = layers.MaxPooling2D(pool_size = (2, 2))(x)
+for filterSize in [32, 64, 128, 256, 512]:
+    residual = x
+    x = layers.BatchNormalization()(x)
+    x = layers.Activation("relu")(x)
+    x = layers.Conv2D(filterSize, 3, padding = "same", use_bias = False)(x)
 
-x = layers.Conv2D(filters=64, kernel_size = (3, 3), activation = "relu")(x)
-x = layers.MaxPooling2D(pool_size = (2, 2))(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.Activation("relu")(x)
+    x = layers.Conv2D(filterSize, 3, padding = "same", use_bias = False)(x)
+    
+    x = layers.MaxPooling2D(3, strides = 2, padding = "same")(x)
 
-x = layers.Conv2D(filters=128, kernel_size = (3, 3), activation = "relu")(x)
-x = layers.MaxPooling2D(pool_size = (2, 2))(x)
+    residual = layers.Conv2D(filterSize, kernel_size = 1, strides = 2, padding = "same", use_bias = False)(residual)
+    x = layers.add([x, residual])
 
-x = layers.Conv2D(filters=256, kernel_size = (3, 3), activation = "relu")(x)
-x = layers.MaxPooling2D(pool_size = (2, 2))(x)
-
-x = layers.Flatten()(x)
+x = layers.GlobalAveragePooling2D()(x)
+x = layers.Dropout(0.5)(x)
 x = layers.Dense(1, activation = "sigmoid")(x)
 
 
-model = tf.keras.models.Model(Inputs, x)
-model.compile(optimizer = "adam", loss = "binary_crossentropy", metrics = ["accuracy"])
-print(model.summary())
 
-model.fit(train_ds, validation_data = val_ds, epochs = 50, 
-        callbacks = [tf.keras.callbacks.ModelCheckpoint("ConvModel", save_best_only = True, monitor = "val_accuracy")])
+model = tf.keras.models.Model(Inputs, x)
+print(model.summary())
+model.compile(optimizer = "adam", loss = "binary_crossentropy", metrics = ["accuracy"])
+
+model.fit(train_ds, validation_data = val_ds, epochs = 5, 
+        callbacks = [tf.keras.callbacks.ModelCheckpoint("ConvModel_With_Xception", save_best_only = True, monitor = "val_accuracy")])
 
 
 
